@@ -1,9 +1,7 @@
-// backend/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
-dotenv.config()
+dotenv.config();
 const secret = process.env.JWT_SECRET;
-
 
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -18,7 +16,7 @@ const authMiddleware = (req, res, next) => {
       return res.status(401).json({ error: 'Failed to authenticate token' });
     }
 
-    req.userId = decoded.id; 
+    req.userId = decoded.id;
     next();
   });
 };

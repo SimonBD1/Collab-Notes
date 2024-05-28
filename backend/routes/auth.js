@@ -9,7 +9,6 @@ const { body, validationResult } = require('express-validator');
 
 const secret = process.env.JWT_SECRET;
 
-// Signup route
 router.post('/signup', [
   body('email').isEmail().withMessage('Invalid email address'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
@@ -32,7 +31,6 @@ router.post('/signup', [
   }
 });
 
-// Login route
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 

@@ -1,37 +1,82 @@
 <script>
   import { onMount } from 'svelte';
   import io from 'socket.io-client';
+  import { navigate } from 'svelte-routing';
+  const logout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
   let notes = [];
   let newNoteContent = '';
   let errorMessage = '';
-  const socket = io('http://localhost:3000', {
-    auth: {
-      token: localStorage.getItem('token')
-    }
-  });
+  let searchQuery = '';
 
-  socket.on('note updated', (note) => {
-    const index = notes.findIndex(n => n.id === note.id);
-    if (index !== -1) {
-      notes[index] = note;
-    } else {
-      notes.push(note);
+  const connectSocket = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
     }
-  });
 
-  socket.on('note deleted', (id) => {
-    notes = notes.filter(note => note.id !== id);
-  });
+    const socket = io('http://localhost:3000', {
+      auth: {
+        token
+      }
+    });
+
+    socket.on('connect_error', (err) => {
+      if (err.message === 'Authentication error') {
+        localStorage.removeItem('token');
+        navigate('/login');
+      }
+    });
+
+    socket.on('note updated', (note) => {
+      const index = notes.findIndex(n => n.id === note.id);
+      if (index !== -1) {
+        notes[index] = note;
+      } else {
+        notes.push(note);
+      }
+    });
+
+    socket.on('note deleted', (id) => {
+      notes = notes.filter(note => note.id !== id);
+    });
+
+    return socket;
+  };
+
+  const socket = connectSocket();
 
   const fetchNotes = async () => {
-    const response = await fetch('http://localhost:3000/notes', {
+    try {
+      const response = await fetch('http://localhost:3000/notes', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.ok) {
+        notes = await response.json();
+        console.log('Notes:', notes);
+      } else {
+        errorMessage = 'Failed to fetch notes';
+        console.error('Failed to fetch notes:', response.statusText);
+      }
+    } catch (error) {
+      errorMessage = 'An error occurred while fetching notes';
+      console.error('Error fetching notes:', error);
+    }
+  };
+
+  const searchNotes = async () => {
+    const response = await fetch(`http://localhost:3000/notes/search?query=${searchQuery}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     if (response.ok) {
       notes = await response.json();
     } else {
-      errorMessage = 'Failed to fetch notes';
-      console.error('Failed to fetch notes:', response.statusText);
+      errorMessage = 'Failed to search notes';
+      console.error('Failed to search notes:', response.statusText);
     }
   };
 
@@ -90,10 +135,15 @@
 </script>
 
 <main class="container mt-5">
+  <button class="btn btn-danger mt-3" on:click={logout}>Logout</button>
   <h1>Notes</h1>
   {#if errorMessage}
     <div class="alert alert-danger">{errorMessage}</div>
   {/if}
+  <div class="input-group mb-3">
+    <input type="text" bind:value={searchQuery} class="form-control" placeholder="Search notes" />
+    <button class="btn btn-primary" on:click={searchNotes}>Search</button>
+  </div>
   <div class="input-group mb-3">
     <input type="text" bind:value={newNoteContent} class="form-control" placeholder="New note" />
     <button class="btn btn-primary" on:click={addNote}>Add Note</button>

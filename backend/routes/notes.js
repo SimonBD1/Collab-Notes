@@ -4,7 +4,6 @@ const authMiddleware = require('../middleware/authMiddleware');
 const router = express.Router();
 
 module.exports = (io) => {
-  // Get all notes for the authenticated user
   router.get('/', authMiddleware, async (req, res) => {
     try {
       const result = await pool.query('SELECT * FROM notes WHERE user_id = $1 ORDER BY updated_at DESC', [req.userId]);
@@ -15,7 +14,20 @@ module.exports = (io) => {
     }
   });
 
-  // Create a new note
+  router.get('/search', authMiddleware, async (req, res) => {
+    const { query } = req.query;
+    try {
+      const result = await pool.query(
+        'SELECT * FROM notes WHERE user_id = $1 AND content ILIKE $2 ORDER BY updated_at DESC',
+        [req.userId, `%${query}%`]
+      );
+      res.json(result.rows);
+    } catch (err) {
+      console.error('Error searching notes:', err.message);
+      res.status(400).json({ error: 'Database error' });
+    }
+  });
+
   router.post('/', authMiddleware, async (req, res) => {
     const { content } = req.body;
 
@@ -30,7 +42,6 @@ module.exports = (io) => {
     }
   });
 
-  // Update a note
   router.put('/:id', authMiddleware, async (req, res) => {
     const { content } = req.body;
     const { id } = req.params;
@@ -46,7 +57,6 @@ module.exports = (io) => {
     }
   });
 
-  // Delete a note
   router.delete('/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
 

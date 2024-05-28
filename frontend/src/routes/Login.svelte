@@ -1,16 +1,21 @@
 <script>
   import { navigate } from 'svelte-routing';
+  import * as yup from 'yup';
+
   let email = '';
   let password = '';
   let errorMessage = '';
 
-  const login = async () => {
-    if (!email || !password) {
-      errorMessage = 'Please fill in all fields';
-      return;
-    }
+  const schema = yup.object().shape({
+    email: yup.string().email('Invalid email address').required('Email is required'),
+    password: yup.string().required('Password is required')
+  });
 
+  const login = async () => {
     try {
+      await schema.validate({ email, password }, { abortEarly: false });
+      errorMessage = '';
+
       const response = await fetch('http://localhost:3000/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -25,9 +30,8 @@
         const errorData = await response.json();
         errorMessage = errorData.error || 'Invalid credentials';
       }
-    } catch (error) {
-      errorMessage = 'Failed to connect to the server';
-      console.error('Error:', error);
+    } catch (err) {
+      errorMessage = err.errors.join(', ');
     }
   };
 </script>
